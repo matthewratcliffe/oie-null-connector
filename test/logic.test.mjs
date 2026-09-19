@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
     ACK_CODE_PATTERN, defaults, validate,
     ackCodeDisabled, ackTextDisabled, responseTemplateDisabled,
+    failurePercentageDisabled, shouldFail,
 } from './logic.mjs';
 
 test('ACK_CODE_PATTERN accepts the six valid MSA-1 codes only', () => {
@@ -24,6 +25,8 @@ test('defaults mirror the Java constructor field for field', () => {
     assert.equal(d.responseTemplate, '');
     assert.equal(d.ackTextMessage, '');
     assert.equal(d.logEachMessage, false);
+    assert.equal(d.failMessages, false);
+    assert.equal(d.failurePercentage, 0);
     assert.equal(d.pluginProperties, null);
     assert.deepEqual(d.destinationConnectorProperties, { '@version': '4.6.0', dest: true });
 });
@@ -49,4 +52,22 @@ test('field disabled predicates track ackMode', () => {
     assert.equal(ackTextDisabled({ ackMode: 'HL7_ACK' }), false);
     assert.equal(responseTemplateDisabled({ ackMode: 'TEMPLATE' }), false);
     assert.equal(responseTemplateDisabled({ ackMode: 'HL7_ACK' }), true);
+    assert.equal(failurePercentageDisabled({ failMessages: false }), true);
+    assert.equal(failurePercentageDisabled({ failMessages: true }), false);
+});
+
+test('failure simulation validates percentages and respects probability boundaries', () => {
+    assert.deepEqual(validate({ ackMode: 'NONE', failMessages: true, failurePercentage: 25 }), []);
+    assert.equal(validate({ ackMode: 'NONE', failMessages: true, failurePercentage: -1 }).length, 1);
+    assert.equal(validate({ ackMode: 'NONE', failMessages: true, failurePercentage: 101 }).length, 1);
+    assert.equal(validate({ ackMode: 'NONE', failMessages: true, failurePercentage: 12.5 }).length, 1);
+    assert.deepEqual(validate({ ackMode: 'NONE', failMessages: false, failurePercentage: 999 }), []);
+
+    assert.equal(shouldFail(false, 100, 0), false);
+    assert.equal(shouldFail(true, 0, 0), false);
+    assert.equal(shouldFail(true, 25, 24), true);
+    assert.equal(shouldFail(true, 25, 25), false);
+    assert.equal(shouldFail(true, 50, 49), true);
+    assert.equal(shouldFail(true, 50, 50), false);
+    assert.equal(shouldFail(true, 100, 99), true);
 });

@@ -35,8 +35,9 @@ called **Null Sender** says so on the dashboard.
 | **Acknowledged** | The connector returns a response, which is what the source connector sends back when the channel's **Response** is set to this destination. Three modes: an HL7 v2 ACK built from the inbound message, a template, or nothing. |
 | **Dropped** | There is no delivery step at all. The payload is read only to build the acknowledgement and to count what was discarded. |
 
-The status is always `SENT`, and the status message records what happened —
-`Discarded 144 characters; ACK AA returned`.
+Normally the status is `SENT`, and the status message records what happened —
+`Discarded 144 characters; ACK AA returned`. Optional failure simulation returns `ERROR`
+for the configured percentage of messages so retry, queue and alert handling can be tested.
 
 ## Settings
 
@@ -46,6 +47,8 @@ The status is always `SENT`, and the status message records what happened —
 | **ACK Code** | `AA` | MSA-1: `AA`, `AE`, `AR`, or the enhanced-mode `CA`, `CE`, `CR`. Supports `${}`, so a transformer can decide it per message. |
 | **ACK Text Message** | empty | MSA-3. Supports `${}`. |
 | **Response Template** | empty | The response content in `Template` mode. Supports `${}`. |
+| **Fail Messages** | off | Enables deliberate message failures for resilience and queue testing. |
+| **Failure Percentage** | `0` | A whole number from 0 to 100. At 50%, about one in two messages fails; at 25%, about one in four fails. |
 | **Server Log** | off | One `INFO` line per discarded message. |
 
 ## Design
@@ -55,10 +58,10 @@ The status is always `SENT`, and the status message records what happened —
 | Acknowledgement | Configured, not assumed | Discarding a message and acknowledging it are separate decisions. A channel whose source is set to `Auto-generate` already answers its sender without help from any destination, and for that channel the right setting here is `None`. A channel whose **Response** names this destination needs the ACK to come from here, and then it has to be a real one. |
 | HL7 ACK | The engine's own `ACKGenerator` | The class the source connectors' `Auto-generate` setting uses, reached through the HL7 v2 data type plugin's auto-responder. So the ACK a partner receives is the one they would have received from a channel that acknowledged at the source — same control id echo, same MSH field swap, same timestamp format — rather than a second implementation of the same thing that drifts from it. |
 | Default acknowledgement | `HL7 ACK` | The connector's reason for existing is usually to terminate an HL7 feed, and a default that acknowledges is more useful than one that does not. It degrades cleanly: a payload that is not HL7 v2 is still discarded and still recorded `SENT`, with the reason in the status message. |
-| Failure | There isn't one | A connector that cannot fail should not invent failures. A message no ACK can be built from has still been successfully discarded, so it comes back `SENT` with an explanatory status message instead of `ERROR` or `QUEUED`. Nothing here can ever fill a destination queue or trip an alert. |
+| Failure | Explicit simulation only | Off by default. When enabled, each message has the configured probability of returning `ERROR`; for example, 50% is approximately one in two and 25% approximately one in four. A message for which an ACK cannot be built still returns `SENT` unless failure simulation selected it. |
 | Templates | Resolved in `send()`, not in `replaceConnectorProperties` | The engine stores a destination's **Sent** content by serialising the connector properties *after* template replacement. Resolving `${message.rawData}` in the usual place would therefore write a second copy of the message into the message store, filed under the connector whose job was to discard it. Nothing in the properties is ever replaced against the message, so the Sent content is configuration and only configuration. |
 | Per-message logging | Off by default | The message store is already the record of what arrived, and a channel ending here is usually a busy one. The `ACK could not be generated` warning is logged once per channel start and at `DEBUG` after that, for the same reason. |
-| Queue | Available, pointless | The standard destination queue settings are left on the panel rather than hidden, because they are the engine's, not this connector's. The queue can never engage: it only holds messages a destination returned `QUEUED` for. |
+| Queue | Available for failure tests | The standard destination queue settings remain available. Simulated `ERROR` responses follow the engine's normal retry and queue behavior, allowing recovery paths to be exercised without a real downstream system. |
 | Response validation | Not offered | `canValidateResponse()` is `false`. The response was generated locally, so validating it would only ever check this connector against itself. |
 | Third-party jars | **None** | The only dependencies are the engine itself — donkey for the connector API, `mirth-server` for the ACK generator, log4j-api, and Swing. Nothing is downloaded at build time, so there is no checksum step in `build.sh`. |
 | Service plugin | Ships alongside the connector | The engine deserialises channel XML through an XStream that permits nothing outside `com.mirth.connect.**`. Without registering this properties class, every channel using the connector would be stored as an `InvalidChannel` while `PUT /channels/{id}` still answered `200`. Registered on the server at startup and in the desktop Administrator at login. |
@@ -68,7 +71,7 @@ The status is always `SENT`, and the status message records what happened —
 
 ```
 ./plugins/oie-null-connector/build.sh
-cp plugins/oie-null-connector/dist/nullsender-0.1.0.zip extensions/
+cp dist/nullsender-0.2.0.zip extensions/
 docker compose up -d --force-recreate engine
 ./scripts/oie-check-extensions.sh "Null Sender" "Null Connector Service Plugin"
 ```

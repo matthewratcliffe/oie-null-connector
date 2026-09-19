@@ -19,7 +19,7 @@
 # Environment:
 #   OIE_IMAGE      image to take engine jars from    (default oie/engine:4.6.0)
 #   JDK_IMAGE      compiler image                    (default eclipse-temurin:21-jdk)
-#   PLUGIN_VERSION version stamped into the metadata (default 0.1.0)
+#   PLUGIN_VERSION version stamped into the metadata (default 0.2.0)
 
 set -euo pipefail
 
@@ -28,7 +28,7 @@ ROOT="${HERE}"
 
 OIE_IMAGE="${OIE_IMAGE:-oie/engine:4.6.0}"
 JDK_IMAGE="${JDK_IMAGE:-eclipse-temurin:21-jdk}"
-PLUGIN_VERSION="${PLUGIN_VERSION:-0.1.0}"
+PLUGIN_VERSION="${PLUGIN_VERSION:-0.2.0}"
 
 # Must match the engine the extension is installed on, or ExtensionLoader
 # refuses it outright -- compatibility is an exact string match.

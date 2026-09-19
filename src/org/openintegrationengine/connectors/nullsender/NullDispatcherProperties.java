@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: MIT
  */
 package org.openintegrationengine.connectors.nullsender;
 
@@ -43,6 +43,8 @@ public class NullDispatcherProperties extends ConnectorProperties
     private String ackCode;
     private String ackTextMessage;
     private boolean logEachMessage;
+    private boolean failMessages;
+    private int failurePercentage;
 
     public NullDispatcherProperties() {
         /*
@@ -57,6 +59,8 @@ public class NullDispatcherProperties extends ConnectorProperties
         ackCode = "AA";
         ackTextMessage = "";
         logEachMessage = false;
+        failMessages = false;
+        failurePercentage = 0;
     }
 
     public NullDispatcherProperties(NullDispatcherProperties props) {
@@ -68,6 +72,8 @@ public class NullDispatcherProperties extends ConnectorProperties
         ackCode = props.getAckCode();
         ackTextMessage = props.getAckTextMessage();
         logEachMessage = props.isLogEachMessage();
+        failMessages = props.isFailMessages();
+        failurePercentage = props.getFailurePercentage();
     }
 
     @Override
@@ -184,6 +190,24 @@ public class NullDispatcherProperties extends ConnectorProperties
         this.logEachMessage = logEachMessage;
     }
 
+    /** Whether this destination should deliberately fail a percentage of messages. */
+    public boolean isFailMessages() {
+        return failMessages;
+    }
+
+    public void setFailMessages(boolean failMessages) {
+        this.failMessages = failMessages;
+    }
+
+    /** Percentage of messages to fail, from 0 through 100 inclusive. */
+    public int getFailurePercentage() {
+        return failurePercentage;
+    }
+
+    public void setFailurePercentage(int failurePercentage) {
+        this.failurePercentage = failurePercentage;
+    }
+
     /*
      * Written out rather than reflected over: this class has five fields and no dependency
      * on commons-lang3, and the shared jar is loaded by the desktop Administrator as well
@@ -204,12 +228,15 @@ public class NullDispatcherProperties extends ConnectorProperties
                 && Objects.equals(ackCode, other.ackCode)
                 && Objects.equals(ackTextMessage, other.ackTextMessage)
                 && logEachMessage == other.logEachMessage
+                && failMessages == other.failMessages
+                && failurePercentage == other.failurePercentage
                 && Objects.equals(destinationConnectorProperties, other.destinationConnectorProperties);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ackMode, responseTemplate, ackCode, ackTextMessage, logEachMessage);
+        return Objects.hash(ackMode, responseTemplate, ackCode, ackTextMessage, logEachMessage,
+                failMessages, failurePercentage);
     }
 
     /*
@@ -238,6 +265,8 @@ public class NullDispatcherProperties extends ConnectorProperties
         purged.put("ackCode", ackCode);
         purged.put("ackTextMessageSet", ackTextMessage != null && !ackTextMessage.trim().isEmpty());
         purged.put("logEachMessage", logEachMessage);
+        purged.put("failMessages", failMessages);
+        purged.put("failurePercentage", failMessages ? failurePercentage : 0);
         purged.put("responseTemplateLines",
                 responseTemplate == null ? 0 : responseTemplate.split("\r\n|\r|\n").length);
         purged.put("destinationConnectorProperties", destinationConnectorProperties == null ? null

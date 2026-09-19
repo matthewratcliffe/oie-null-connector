@@ -28,6 +28,8 @@ export function defaults(version, defaultDestinationProperties = () => ({})) {
         responseTemplate: '',
         ackCode: 'AA',
         ackTextMessage: '',
+        failMessages: false,
+        failurePercentage: 0,
         logEachMessage: false,
     };
 }
@@ -44,6 +46,11 @@ export function validate(properties) {
             errors.push('ACK Code must be AA, AE, AR, CA, CE or CR.');
         }
     }
+    const percentage = Number(properties.failurePercentage);
+    if (properties.failMessages
+            && (!Number.isInteger(percentage) || percentage < 0 || percentage > 100)) {
+        errors.push('Failure Percentage must be a whole number from 0 to 100.');
+    }
     return errors;
 }
 
@@ -51,3 +58,9 @@ export function validate(properties) {
 export const ackCodeDisabled = (p) => p.ackMode !== 'HL7_ACK';
 export const ackTextDisabled = (p) => p.ackMode !== 'HL7_ACK';
 export const responseTemplateDisabled = (p) => p.ackMode !== 'TEMPLATE';
+export const failurePercentageDisabled = (p) => !p.failMessages;
+
+export function shouldFail(enabled, percentage, roll) {
+    const bounded = Math.max(0, Math.min(100, percentage));
+    return enabled && bounded > roll;
+}

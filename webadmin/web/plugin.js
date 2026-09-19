@@ -61,6 +61,8 @@ export function register(platform) {
                 responseTemplate: '',
                 ackCode: 'AA',
                 ackTextMessage: '',
+                failMessages: false,
+                failurePercentage: 0,
                 logEachMessage: false
             };
         },
@@ -88,6 +90,21 @@ export function register(platform) {
                         disabled: (p) => p.ackMode !== 'HL7_ACK',
                         tooltip: 'MSA-3, the human-readable text on the acknowledgement. Supports ${} values;'
                             + ' blank is fine.'
+                    },
+
+                    { section: 'Failure Simulation' },
+                    {
+                        key: 'failMessages', label: 'Fail Messages', type: 'checkbox', refresh: true,
+                        checkLabel: 'Deliberately fail messages',
+                        tooltip: 'Off by default. Failed messages return an ERROR status and follow the'
+                            + ' destination’s normal retry and queue settings.'
+                    },
+                    {
+                        key: 'failurePercentage', label: 'Failure Percentage', type: 'number',
+                        min: 0, max: 100, step: 1, width: '120px',
+                        disabled: (p) => !p.failMessages,
+                        tooltip: '0 to 100. For example, 50% fails about one in two messages and 25%'
+                            + ' about one in four.'
                     },
 
                     { section: 'Logging' },
@@ -120,6 +137,11 @@ export function register(platform) {
                 if (!code.includes('${') && !ACK_CODE_PATTERN.test(code)) {
                     errors.push('ACK Code must be AA, AE, AR, CA, CE or CR.');
                 }
+            }
+            const percentage = Number(properties.failurePercentage);
+            if (properties.failMessages
+                    && (!Number.isInteger(percentage) || percentage < 0 || percentage > 100)) {
+                errors.push('Failure Percentage must be a whole number from 0 to 100.');
             }
             return errors;
         }

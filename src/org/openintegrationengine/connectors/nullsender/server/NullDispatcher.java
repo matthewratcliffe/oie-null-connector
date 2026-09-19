@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: MIT
  */
 package org.openintegrationengine.connectors.nullsender.server;
 
@@ -21,6 +21,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openintegrationengine.connectors.nullsender.AckMode;
 import org.openintegrationengine.connectors.nullsender.NullDispatcherProperties;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The Null Sender: records the message, answers it, and discards it.
@@ -105,6 +107,18 @@ public class NullDispatcher extends DestinationConnector {
             throws InterruptedException {
         NullDispatcherProperties props = (NullDispatcherProperties) connectorProperties;
 
+        int failurePercentage = boundedPercentage(props.getFailurePercentage());
+        if (shouldFail(props.isFailMessages(), failurePercentage,
+                ThreadLocalRandom.current().nextInt(100))) {
+            String status = "Deliberately failed by Null Sender (" + failurePercentage
+                    + "% failure simulation)";
+            if (props.isLogEachMessage()) {
+                logger.info("Null Sender deliberately failed message {} on channel {} ({}): {}",
+                        connectorMessage.getMessageId(), getChannelId(), getDestinationName(), status);
+            }
+            return new Response(Status.ERROR, null, status);
+        }
+
         String content = contentOf(connectorMessage);
         int discarded = content == null ? 0 : content.length();
         StringBuilder statusMessage = new StringBuilder("Discarded ").append(discarded)
@@ -168,6 +182,14 @@ public class NullDispatcher extends DestinationConnector {
          * did not happen is the thing this connector exists not to do.
          */
         return new Response(Status.SENT, response, statusMessage.toString());
+    }
+
+    static boolean shouldFail(boolean enabled, int percentage, int roll) {
+        return enabled && boundedPercentage(percentage) > roll;
+    }
+
+    private static int boundedPercentage(int percentage) {
+        return Math.max(0, Math.min(100, percentage));
     }
 
     /**

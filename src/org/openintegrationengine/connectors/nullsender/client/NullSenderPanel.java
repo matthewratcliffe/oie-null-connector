@@ -1,5 +1,5 @@
 /*
- * SPDX-License-Identifier: MPL-2.0
+ * SPDX-License-Identifier: MIT
  */
 package org.openintegrationengine.connectors.nullsender.client;
 
@@ -35,6 +35,8 @@ public class NullSenderPanel extends ConnectorSettingsPanel {
     private final JScrollPane responseTemplateScroll = FormBuilder.scroll(responseTemplate, 140);
     private final JTextField ackCode = FormBuilder.text(8);
     private final JTextField ackTextMessage = FormBuilder.text(35);
+    private final JCheckBox failMessages = FormBuilder.checkBox("Deliberately fail messages");
+    private final JTextField failurePercentage = FormBuilder.text(8);
     private final JCheckBox logEachMessage = FormBuilder.checkBox("Log one line per discarded message");
 
     public NullSenderPanel() {
@@ -54,12 +56,20 @@ public class NullSenderPanel extends ConnectorSettingsPanel {
         form.field("ACK Text Message", ackTextMessage,
                 "MSA-3, the human-readable text on the acknowledgement. Supports ${} values; blank is fine.");
 
+        form.section("Failure Simulation");
+        form.field("Fail Messages", failMessages,
+                "Off by default. When enabled, deliberately return an ERROR for the configured"
+                        + " percentage of messages.");
+        form.field("Failure Percentage", failurePercentage,
+                "0 to 100. For example, 50% fails about one in two messages and 25% about one in four.");
+
         form.section("Logging");
         form.field("Server Log", logEachMessage,
                 "Off by default: the message store is already the record of what arrived, and a channel"
                         + " ending here is usually a busy one. Useful while proving an interface end to end.");
 
         ackMode.addActionListener(e -> updateEnabledState());
+        failMessages.addActionListener(e -> updateEnabledState());
         updateEnabledState();
     }
 
@@ -73,6 +83,7 @@ public class NullSenderPanel extends ConnectorSettingsPanel {
         responseTemplateScroll.setEnabled(template);
         ackCode.setEnabled(hl7);
         ackTextMessage.setEnabled(hl7);
+        failurePercentage.setEnabled(failMessages.isSelected());
     }
 
     /** The response template takes dropped variables, so the variable list uses Velocity syntax. */
@@ -94,6 +105,8 @@ public class NullSenderPanel extends ConnectorSettingsPanel {
         props.setResponseTemplate(FormBuilder.text(responseTemplate));
         props.setAckCode(FormBuilder.text(ackCode));
         props.setAckTextMessage(FormBuilder.text(ackTextMessage));
+        props.setFailMessages(failMessages.isSelected());
+        props.setFailurePercentage(parsePercentage());
         props.setLogEachMessage(logEachMessage.isSelected());
 
         return props;
@@ -107,6 +120,8 @@ public class NullSenderPanel extends ConnectorSettingsPanel {
         responseTemplate.setText(props.getResponseTemplate());
         ackCode.setText(props.getAckCode());
         ackTextMessage.setText(props.getAckTextMessage());
+        failMessages.setSelected(props.isFailMessages());
+        failurePercentage.setText(Integer.toString(props.getFailurePercentage()));
         logEachMessage.setSelected(props.isLogEachMessage());
 
         updateEnabledState();
@@ -139,11 +154,28 @@ public class NullSenderPanel extends ConnectorSettingsPanel {
             }
         }
 
+        if (props.isFailMessages()
+                && (props.getFailurePercentage() < 0 || props.getFailurePercentage() > 100)) {
+            valid = false;
+            if (highlight) {
+                FormBuilder.invalid(failurePercentage);
+            }
+        }
+
         return valid;
     }
 
     @Override
     public void resetInvalidProperties() {
         FormBuilder.valid(ackCode);
+        FormBuilder.valid(failurePercentage);
+    }
+
+    private int parsePercentage() {
+        try {
+            return Integer.parseInt(FormBuilder.text(failurePercentage));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 }
