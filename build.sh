@@ -222,7 +222,9 @@ JAVA
 
 prepare_libs
 compile
-verify
+if [[ "${SKIP_SELF_TESTS:-0}" != "1" ]]; then
+    verify
+fi
 package
 
 cat <<EOF
